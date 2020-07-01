@@ -57,8 +57,8 @@ PACKAGES += build-essential
 
 # Shared Compiler Flags
 CFLAGS := -std=c++17 -O3 -pedantic -Wpedantic -Wall -Wextra -Wunused -Wshadow -Wpointer-arith -Wcast-qual -Wno-missing-braces -ftree-vectorize
-INC := -I include $(INCLIST) -I /usr/local/include
-LIB := -pthread -lm -lrt
+INC := -I include $(INCLIST) -I /usr/local/include -I/home/vini/ffmpeg_build/include -L/home/vini/ffmpeg_build/lib
+LIB := -pthread `pkg-config --libs libavformat` `pkg-config --libs libavdevice` `pkg-config --libs libavcodec` `pkg-config --libs libavutil` `pkg-config --libs libswscale` `pkg-config --libs libswresample`  -lm -lrt
 
 ifeq ($(debug), 1)
 CFLAGS += -g -ggdb3 -D DEBUG -lasan -fasynchronous-unwind-tables
