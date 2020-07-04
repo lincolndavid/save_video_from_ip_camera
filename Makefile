@@ -35,7 +35,7 @@ TARGETDIR := bin
 TESTBUILDDIR := build_tests
 
 # Targets
-EXECUTABLE := template-executable-name
+EXECUTABLE := main
 TARGET := $(TARGETDIR)/$(EXECUTABLE)
 
 # Final Paths
@@ -57,7 +57,7 @@ PACKAGES += build-essential
 
 # Shared Compiler Flags
 CFLAGS := -std=c++17 -O3 -pedantic -Wpedantic -Wall -Wextra -Wunused -Wshadow -Wpointer-arith -Wcast-qual -Wno-missing-braces -ftree-vectorize
-INC := -I include $(INCLIST) -I /usr/local/include -I/home/vini/ffmpeg_build/include -L/home/vini/ffmpeg_build/lib
+INC := -I include $(INCLIST) -I /usr/local/include 
 LIB := -pthread `pkg-config --libs libavformat` `pkg-config --libs libavdevice` `pkg-config --libs libavcodec` `pkg-config --libs libavutil` `pkg-config --libs libswscale` `pkg-config --libs libswresample`  -lm -lrt
 
 ifeq ($(debug), 1)
