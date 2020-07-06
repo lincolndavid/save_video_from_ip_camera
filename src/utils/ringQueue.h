@@ -36,7 +36,7 @@ public:
             auto element = this->m_queue[this->m_tail];
 
             if (element != nullptr) {
-                av_packet_free(&element);
+                av_free_packet(element);
                 element = nullptr;
             }
 
@@ -78,8 +78,8 @@ private:
             int ret = av_interleaved_write_frame(output_format_context,
                                                  packet_in_tail); // Dumps it to the file
 
-            av_packet_free(&packet_in_tail); // Release the packet as ffmpeg already has its data
-            packet_in_tail = nullptr;        // Add nullptr for sanity checks
+            av_free_packet(packet_in_tail); // Release the packet as ffmpeg already has its data
+            packet_in_tail = nullptr;       // Add nullptr for sanity checks
 
             this->m_tail = (this->m_tail + 1) % this->m_size; // Moves the tail forward
 

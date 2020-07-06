@@ -16,7 +16,10 @@ extern "C" {
 }
 
 #include <iostream>
+#include "utils/ringQueue.h"
 using namespace std;
+
+#define BUFFERSIZE 90
 
 int main(void) {
     AVFormatContext *ifmt_ctx = NULL, *ofmt_ctx = NULL;
@@ -34,12 +37,16 @@ int main(void) {
     char option_value2[] = "5000000";
     av_dict_set(&avdic, option_key2, option_value2, 0);
 
-    AVPacket pkt;
+    AVPacket* pkt;
+    // AVPacket* pkt1       = &pkt; // GAMBS: CORRECT LATER
     AVOutputFormat* ofmt = NULL;
     int video_index      = -1;
     int frame_index      = 0;
 
+    RingQueue circle(BUFFERSIZE);
+
     int i;
+    int v = 0;
 
     //Open the input stream
     int ret;
@@ -116,44 +123,41 @@ int main(void) {
     }
 
     //Continuous access to data packets in the while loop, regardless of audio and video, is stored in the file
-    while (1) {
+    while (v < BUFFERSIZE) {
         AVStream *in_stream, *out_stream;
+
+        //Alloc packet memory
+        pkt = av_packet_alloc();
         //Get a packet from the input stream
-        ret = av_read_frame(ifmt_ctx, &pkt);
+        ret = av_read_frame(ifmt_ctx, pkt);
         if (ret < 0) break;
 
-        in_stream  = ifmt_ctx->streams[pkt.stream_index];
-        out_stream = ofmt_ctx->streams[pkt.stream_index];
+        in_stream  = ifmt_ctx->streams[pkt->stream_index];
+        out_stream = ofmt_ctx->streams[pkt->stream_index];
         //copy packet
         //Conversion of PTS/DTS Timing
-        pkt.pts = av_rescale_q_rnd(pkt.pts, in_stream->time_base, out_stream->time_base,
-                                   (enum AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
-        pkt.dts = av_rescale_q_rnd(pkt.dts, in_stream->time_base, out_stream->time_base,
-                                   (enum AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+        pkt->pts = av_rescale_q_rnd(pkt->pts, in_stream->time_base, out_stream->time_base,
+                                    (enum AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+        pkt->dts = av_rescale_q_rnd(pkt->dts, in_stream->time_base, out_stream->time_base,
+                                    (enum AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
         //printf("pts %d dts %d base %d\n",pkt.pts,pkt.dts, in_stream->time_base);
-        pkt.duration = av_rescale_q(pkt.duration, in_stream->time_base, out_stream->time_base);
-        pkt.pos      = -1;
+        pkt->duration = av_rescale_q(pkt->duration, in_stream->time_base, out_stream->time_base);
+        pkt->pos      = -1;
 
         //Not all packet s in this while loop are video frames. Record when you receive a video frame
-        if (pkt.stream_index == video_index) {
+        if (pkt->stream_index == video_index) {
             printf("Receive %8d video frames from input URL\n", frame_index);
             frame_index++;
+            circle.insert(&pkt);
+        } else {
+            av_free_packet(pkt);
         }
 
-        //Write the package data to a file.
-        ret = av_interleaved_write_frame(ofmt_ctx, &pkt);
-        if (ret < 0) {
-            if (ret == -22) {
-                continue;
-            } else {
-                printf("Error muxing packet.error code %d\n", ret);
-                break;
-            }
-        }
-
-        //Av_free_packet(&pkt); // This sentence has been replaced by av_packet_unref in the new version.
-        av_packet_unref(&pkt);
+        v++;
     }
+
+    std::cout << "OUT OF WHILE\n";
+    circle.dump(ofmt_ctx);
 
     //Write the end of the file
     av_write_trailer(ofmt_ctx);
