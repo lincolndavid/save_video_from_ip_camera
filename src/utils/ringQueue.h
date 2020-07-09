@@ -30,6 +30,8 @@ public:
 
         this->m_queue[this->m_head] =
             this->extractAndRelease(packet); // The user will lose the reference to the pointer
+
+        std::clog << "queue now has packet with pts " << this->m_queue[this->m_head]->pts << "\r";
         this->m_head = (this->m_head + 1) % m_size;
 
         if (this->m_head == this->m_tail) {
@@ -75,6 +77,7 @@ private:
         auto packet_in_tail = this->m_queue[this->m_tail]; // Get the packet at the tail
 
         if (packet_in_tail != nullptr) {
+            std::clog << "Writing packet " << packet_in_tail->pts << "\r";
             int ret = av_interleaved_write_frame(output_format_context,
                                                  packet_in_tail); // Dumps it to the file
 
@@ -82,12 +85,13 @@ private:
             packet_in_tail = nullptr;       // Add nullptr for sanity checks
 
             this->m_tail = (this->m_tail + 1) % this->m_size; // Moves the tail forward
-
-            if (ret < 0) {
+            if (ret == 0) {
                 return this->recursiveDump(
                     output_format_context); // Invokes it again until we reach the head
             }
         }
+
+        std::clog << "No more packets in tail" << std::endl;
 
         return 0;
     }
