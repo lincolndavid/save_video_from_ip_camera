@@ -149,8 +149,12 @@ int main(void) {
         //pts_count += 3000;
 
         //Not all packet s in this while loop are video frames. Record when you receive a video frame
-        circle.insert(&pkt);
-
+        //
+        if (pkt->flags & AV_PKT_FLAG_CORRUPT || pkt->flags & AV_PKT_FLAG_DISCARD) {
+            std::cout << "Discarding packet - corrupted" << std::endl;
+        } else {
+            circle.insert(&pkt);
+        }
         v++;
     }
 
