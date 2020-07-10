@@ -38,7 +38,7 @@ public:
             auto element = this->m_queue[this->m_tail];
 
             if (element != nullptr) {
-                av_free_packet(element);
+                av_packet_unref(element);
                 element = nullptr;
             }
 
@@ -60,7 +60,7 @@ private:
     int m_head { 0 };
     int m_tail { 0 };
     int m_size { 0 };
-    int m_pts  { 0 }; 
+    int m_pts { 0 };
 
     std::mutex m_access_mutex;
     const int kGrowthValue = 3000;
@@ -82,14 +82,14 @@ private:
         if (packet_in_tail != nullptr) {
             packet_in_tail->pts = packet_in_tail->dts = m_pts;
             m_pts += kGrowthValue;
-            
+
             std::clog << "Writing packet " << packet_in_tail->pts << "\r";
 
             int ret = av_interleaved_write_frame(output_format_context,
                                                  packet_in_tail); // Dumps it to the file
 
-            av_free_packet(packet_in_tail); // Release the packet as ffmpeg already has its data
-            packet_in_tail = nullptr;       // Add nullptr for sanity checks
+            av_packet_unref(packet_in_tail); // Release the packet as ffmpeg already has its data
+            packet_in_tail = nullptr;        // Add nullptr for sanity checks
 
             this->m_tail = (this->m_tail + 1) % this->m_size; // Moves the tail forward
             if (ret == 0) {

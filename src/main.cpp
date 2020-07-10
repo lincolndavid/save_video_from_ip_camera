@@ -19,12 +19,12 @@ extern "C" {
 #include "utils/ringQueue.h"
 using namespace std;
 
-#define BUFFERSIZE 24 * 30
+#define BUFFERSIZE 30 * 30 // 30 seconds with 30 FPS
 
 int main(void) {
     AVFormatContext *ifmt_ctx = NULL, *ofmt_ctx = NULL;
     const char *in_filename, *out_filename;
-    in_filename  = "rtsp://localhost:8554/mystream";
+    in_filename  = "rtsp://admin:admin123@192.168.0.23/cam/realmonitor?channel=1&subtype=0";
     out_filename = "output.mp4";
 
     avformat_network_init();
@@ -38,10 +38,8 @@ int main(void) {
     av_dict_set(&avdic, option_key2, option_value2, 0);
 
     AVPacket* pkt;
-    // AVPacket* pkt1       = &pkt; // GAMBS: CORRECT LATER
     AVOutputFormat* ofmt = NULL;
     int video_index      = -1;
-    int frame_index      = 0;
 
     RingQueue circle(BUFFERSIZE);
 
@@ -71,6 +69,7 @@ int main(void) {
     av_dump_format(ifmt_ctx, 0, in_filename, 0);
 
     auto out_format = av_guess_format("mp4", nullptr, nullptr);
+
     //Open the output stream
     avformat_alloc_output_context2(&ofmt_ctx, out_format, out_format->name, out_filename);
 
@@ -93,7 +92,6 @@ int main(void) {
         std::cerr << "Could not copy codec parameters" << std::endl;
     }
 
-
     output_stream->id             = ofmt_ctx->nb_streams - 1;
     output_stream->r_frame_rate   = input_stream->r_frame_rate;
     output_stream->avg_frame_rate = input_stream->avg_frame_rate;
@@ -108,17 +106,15 @@ int main(void) {
     }
 
     av_dump_format(ofmt_ctx, 0, out_filename, 1);
-    
+
     //Write file header to output file
     ret = avformat_write_header(ofmt_ctx, NULL);
     if (ret < 0) {
         printf("Error occured when opening output URL\n");
     }
 
-    //Continuous access to data packets in the while loop, regardless of audio and video, is stored in the file
-    //
-    //auto pts_count = 0;
-    while (v < BUFFERSIZE) {
+    //Continuous access to data packets in the while loop
+    while (v < (BUFFERSIZE * 2)) {
         AVStream *in_stream, *out_stream;
 
         //Alloc packet memory
@@ -128,28 +124,15 @@ int main(void) {
         if (ret < 0) break;
 
         if (pkt->stream_index != video_index) {
-            av_free_packet(pkt);
+            av_packet_unref(pkt);
             continue;
         }
 
         in_stream  = ifmt_ctx->streams[pkt->stream_index];
         out_stream = ofmt_ctx->streams[pkt->stream_index];
-        //copy packet
-        //Conversion of PTS/DTS Timing
-        //pkt->pts = av_rescale_q_rnd(pkt->pts, in_stream->time_base, out_stream->time_base,
-        //                            (enum AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
-        //pkt->dts = av_rescale_q_rnd(pkt->dts, in_stream->time_base, out_stream->time_base,
-        //                            (enum AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
-        ////printf("pts %d dts %d base %d\n",pkt.pts,pkt.dts, in_stream->time_base);
-        //pkt->duration = av_rescale_q(pkt->duration, in_stream->time_base, out_stream->time_base);
-        //pkt->pos      = -1;
 
-        
-        //pkt->pts = pkt->dts = pts_count;
-        //pts_count += 3000;
-
-        //Not all packet s in this while loop are video frames. Record when you receive a video frame
-        //
+        //Not all packet s in this while loop are video frames.
+        //Record when you receive a video frame.
         if (pkt->flags & AV_PKT_FLAG_CORRUPT || pkt->flags & AV_PKT_FLAG_DISCARD) {
             std::cout << "Discarding packet - corrupted" << std::endl;
         } else {
@@ -158,12 +141,11 @@ int main(void) {
         v++;
     }
 
-    std::cout << "OUT OF WHILE\n";
     circle.dump(ofmt_ctx);
-    
+
     //Write the end of the file
     av_write_trailer(ofmt_ctx);
-    
+
     if (ofmt_ctx && !(out_format->flags & AVFMT_NOFILE)) avio_close(ofmt_ctx->pb);
     av_dict_free(&avdic);
     avformat_close_input(&ifmt_ctx);
