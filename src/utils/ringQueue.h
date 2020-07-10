@@ -50,6 +50,7 @@ public:
         std::unique_lock<std::mutex> lock(
             m_access_mutex); // From this point on only this method can have the lock
 
+        m_pts = 0; // Always zeros PTS before dumping to file
         return recursiveDump(output_format_context);
     }
 
@@ -59,8 +60,10 @@ private:
     int m_head { 0 };
     int m_tail { 0 };
     int m_size { 0 };
+    int m_pts  { 0 }; 
 
     std::mutex m_access_mutex;
+    const int kGrowthValue = 3000;
 
     AVPacket* extractAndRelease(AVPacket** packet) {
         AVPacket* incoming_packet = *packet;
@@ -77,7 +80,11 @@ private:
         auto packet_in_tail = this->m_queue[this->m_tail]; // Get the packet at the tail
 
         if (packet_in_tail != nullptr) {
+            packet_in_tail->pts = packet_in_tail->dts = m_pts;
+            m_pts += kGrowthValue;
+            
             std::clog << "Writing packet " << packet_in_tail->pts << "\r";
+
             int ret = av_interleaved_write_frame(output_format_context,
                                                  packet_in_tail); // Dumps it to the file
 

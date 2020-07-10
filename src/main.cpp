@@ -117,7 +117,7 @@ int main(void) {
 
     //Continuous access to data packets in the while loop, regardless of audio and video, is stored in the file
     //
-    auto pts_count = 0;
+    //auto pts_count = 0;
     while (v < BUFFERSIZE) {
         AVStream *in_stream, *out_stream;
 
@@ -136,20 +136,19 @@ int main(void) {
         out_stream = ofmt_ctx->streams[pkt->stream_index];
         //copy packet
         //Conversion of PTS/DTS Timing
-        pkt->pts = av_rescale_q_rnd(pkt->pts, in_stream->time_base, out_stream->time_base,
-                                    (enum AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
-        pkt->dts = av_rescale_q_rnd(pkt->dts, in_stream->time_base, out_stream->time_base,
-                                    (enum AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
-        //printf("pts %d dts %d base %d\n",pkt.pts,pkt.dts, in_stream->time_base);
-        pkt->duration = av_rescale_q(pkt->duration, in_stream->time_base, out_stream->time_base);
-        pkt->pos      = -1;
+        //pkt->pts = av_rescale_q_rnd(pkt->pts, in_stream->time_base, out_stream->time_base,
+        //                            (enum AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+        //pkt->dts = av_rescale_q_rnd(pkt->dts, in_stream->time_base, out_stream->time_base,
+        //                            (enum AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+        ////printf("pts %d dts %d base %d\n",pkt.pts,pkt.dts, in_stream->time_base);
+        //pkt->duration = av_rescale_q(pkt->duration, in_stream->time_base, out_stream->time_base);
+        //pkt->pos      = -1;
 
         
-        pkt->pts = pkt->dts = pts_count;
-        pts_count += 3000;
+        //pkt->pts = pkt->dts = pts_count;
+        //pts_count += 3000;
 
         //Not all packet s in this while loop are video frames. Record when you receive a video frame
-        frame_index++;
         circle.insert(&pkt);
 
         v++;
